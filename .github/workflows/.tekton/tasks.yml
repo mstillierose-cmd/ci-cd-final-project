@@ -1,0 +1,45 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: github-ci-task
+spec:
+  params:
+    - name: repo-url
+      type: string
+      description: GitHub repository URL to clone
+    - name: revision
+      type: string
+      default: main
+      description: Git branch or tag to checkout
+
+  workspaces:
+    - name: source
+      description: Workspace for source code
+
+  steps:
+    # Step 1: Clone the repository
+    - name: clone
+      image: alpine/git
+      script: |
+        #!/bin/sh
+        git clone $(params.repo-url) $(workspaces.source.path)
+        cd $(workspaces.source.path)
+        git checkout $(params.revision)
+
+    # Step 2: Lint the code
+    - name: lint
+      image: python:3.10
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/sh
+        pip install flake8
+        flake8 .
+
+    # Step 3: Run unit tests
+    - name: test
+      image: python:3.10
+      workingDir: $(workspaces.source.path)
+      script: |
+        #!/bin/sh
+        pip install pytest
+        pytest -v
